@@ -1,6 +1,6 @@
 <img src="https://storage.googleapis.com/ultralytics/logo/logoname1000.png" width="160">
 
-# Introduction
+# Modified COCO2JSON
 
 This directory contains label import/export software developed by Ultralytics LLC, and **is freely available for redistribution under the GPL-3.0 license**. For more information please visit https://www.ultralytics.com.
 

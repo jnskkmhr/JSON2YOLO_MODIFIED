@@ -1,5 +1,7 @@
 import contextlib
 import json
+import sys
+import shutil
 
 import cv2
 import pandas as pd
@@ -250,14 +252,17 @@ def convert_ath_json(json_dir):  # dir contains json annotations and images
     print(f'Done. Output saved to {Path(dir).absolute()}')
 
 
-def convert_coco_json(json_dir='../coco/annotations/', use_segments=False, cls91to80=False):
-    save_dir = make_dirs()  # output directory
+def convert_coco_json(json_dir='../coco/annotations/', use_segments=False, cls91to80=False ,save_dir='coco_txt'):
+    # save_dir = make_dirs(save_dir)  # output directory
+    os.makedirs(save_dir, exist_ok=True)
     coco80 = coco91_to_coco80_class()
 
     # Import json
     for json_file in sorted(Path(json_dir).resolve().glob('*.json')):
-        fn = Path(save_dir) / 'labels' / json_file.stem.replace('instances_', '')  # folder name
-        fn.mkdir()
+        fn = Path(save_dir) / json_file.stem.replace('instances_', '') / 'label' # folder name
+        image_dir = Path(save_dir) / json_file.stem.replace('instances_', '') / 'images'
+        os.makedirs(fn, exist_ok=True)
+        os.makedirs(image_dir, exist_ok=True)
         with open(json_file) as f:
             data = json.load(f)
 
@@ -269,6 +274,7 @@ def convert_coco_json(json_dir='../coco/annotations/', use_segments=False, cls91
             imgToAnns[ann['image_id']].append(ann)
 
         # Write labels file
+        data_idx = 0
         for img_id, anns in tqdm(imgToAnns.items(), desc=f'Annotations {json_file}'):
             img = images['%g' % img_id]
             h, w, f = img['height'], img['width'], img['file_name']
@@ -302,11 +308,16 @@ def convert_coco_json(json_dir='../coco/annotations/', use_segments=False, cls91
                     if s not in segments:
                         segments.append(s)
 
-            # Write
-            with open((fn / f).with_suffix('.txt'), 'a') as file:
+            # Write label
+            with open((fn / str(data_idx)).with_suffix('.txt'), 'a') as file:
                 for i in range(len(bboxes)):
                     line = *(segments[i] if use_segments else bboxes[i]),  # cls, box or segments
                     file.write(('%g ' * len(line)).rstrip() % line + '\n')
+            
+            # write image
+            shutil.copy(os.path.join(json_dir, f), (image_dir/ str(data_idx)).with_suffix('.png'))
+
+            data_idx += 1
 
 
 def min_index(arr1, arr2):
@@ -382,24 +393,9 @@ def delete_dsstore(path='../datasets'):
 
 if __name__ == '__main__':
     source = 'COCO'
-
-    if source == 'COCO':
-        convert_coco_json('../datasets/coco/annotations',  # directory with *.json
-                          use_segments=True,
-                          cls91to80=True)
-
-    elif source == 'infolks':  # Infolks https://infolks.info/
-        convert_infolks_json(name='out',
-                             files='../data/sm4/json/*.json',
-                             img_path='../data/sm4/images/')
-
-    elif source == 'vott':  # VoTT https://github.com/microsoft/VoTT
-        convert_vott_json(name='data',
-                          files='../../Downloads/athena_day/20190715/*.json',
-                          img_path='../../Downloads/athena_day/20190715/')  # images folder
-
-    elif source == 'ath':  # ath format
-        convert_ath_json(json_dir='../../Downloads/athena/')  # images folder
-
-    # zip results
-    # os.system('zip -r ../coco.zip ../coco')
+    data_dir = sys.argv[1]
+    save_dir = sys.argv[2]
+    convert_coco_json(data_dir,  # directory with *.json
+                        use_segments=True,
+                        cls91to80=False, 
+                        save_dir=save_dir)
