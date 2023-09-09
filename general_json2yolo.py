@@ -259,7 +259,7 @@ def convert_coco_json(json_dir='../coco/annotations/', use_segments=False, cls91
 
     # Import json
     for json_file in sorted(Path(json_dir).resolve().glob('*.json')):
-        fn = Path(save_dir) / json_file.stem.replace('instances_', '') / 'label' # folder name
+        fn = Path(save_dir) / json_file.stem.replace('instances_', '') / 'labels' # folder name
         image_dir = Path(save_dir) / json_file.stem.replace('instances_', '') / 'images'
         os.makedirs(fn, exist_ok=True)
         os.makedirs(image_dir, exist_ok=True)
@@ -278,10 +278,10 @@ def convert_coco_json(json_dir='../coco/annotations/', use_segments=False, cls91
         for img_id, anns in tqdm(imgToAnns.items(), desc=f'Annotations {json_file}'):
             img = images['%g' % img_id]
             h, w, f = img['height'], img['width'], img['file_name']
-
             bboxes = []
             segments = []
             for ann in anns:
+                cls = coco80[ann['category_id'] - 1] if cls91to80 else ann['category_id'] - 1  # class
                 if ann['iscrowd']:
                     continue
                 # The COCO box format is [top left x, top left y, width, height]
@@ -291,11 +291,10 @@ def convert_coco_json(json_dir='../coco/annotations/', use_segments=False, cls91
                 box[[1, 3]] /= h  # normalize y
                 if box[2] <= 0 or box[3] <= 0:  # if w <= 0 and h <= 0
                     continue
-
-                cls = coco80[ann['category_id'] - 1] if cls91to80 else ann['category_id'] - 1  # class
                 box = [cls] + box.tolist()
                 if box not in bboxes:
                     bboxes.append(box)
+
                 # Segments
                 if use_segments:
                     if len(ann['segmentation']) > 1:
